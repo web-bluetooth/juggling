@@ -34,15 +34,14 @@ public:
     AccelerometerService(BLE &_ble) :
         ble(_ble)
     {
-        GattCharacteristic characteristic(AccelCharacteristicUuid, (uint8_t *)dataBuffer, 0,
+        characteristic = new GattCharacteristic(AccelCharacteristicUuid, (uint8_t *)dataBuffer, 0,
             sizeof(dataBuffer), GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
 
-        GattCharacteristic *charTable[] = { &characteristic };
+        GattCharacteristic *charTable[] = { characteristic };
         GattService buttonService(AccelServiceUuid, charTable, sizeof(charTable) / sizeof(GattCharacteristic *));
         ble.gattServer().addService(buttonService);
 
-        auto handle = characteristic.getValueHandle();
-
+        auto handle = characteristic->getValueHandle();
         ble.gattServer().write(handle, (uint8_t *)dataBuffer, sizeof(dataBuffer));
     }
 
@@ -51,10 +50,14 @@ public:
         dataBuffer[0] = x;
         dataBuffer[1] = y;
         dataBuffer[2] = z;
+
+        auto handle = characteristic->getValueHandle();
+        ble.gattServer().write(handle, (uint8_t *)dataBuffer, sizeof(dataBuffer));
     }
 
 private:
     BLE &ble;
+    GattCharacteristic* characteristic;
     uint16_t dataBuffer[3] = { 0x10, 0x11, 0x12 };
 };
 

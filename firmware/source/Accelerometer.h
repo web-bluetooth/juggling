@@ -88,53 +88,53 @@ public:
 
         uint8_t buffer[1];
         if (read(MMA8653_WHOAMI, buffer, 1) != MICROBIT_OK) {
-            printf("WHOAMI command failed\r\n");
+            // printf("WHOAMI command failed\r\n");
             return;
         }
         if (buffer[0] != MMA8653_WHOAMI_VAL) {
-            printf("WHOAMI returned wrong value, was %x\r\n", buffer[0]);
+            // printf("WHOAMI returned wrong value, was %x\r\n", buffer[0]);
             return;
         }
-        printf("Accelerometer identified successfully!\r\n");
+        // printf("Accelerometer identified successfully!\r\n");
 
         // Now configure the accelerometer accordingly.
         // First place the device into standby mode, so it can be configured.
         if (write(MMA8653_CTRL_REG1, 0x00) != MICROBIT_OK) {
-            printf("MMA8653_CTRL_REG1 Write failed\r\n");
+            // printf("MMA8653_CTRL_REG1 Write failed\r\n");
             return;
         }
 
         // Enable high precisiosn mode. This consumes a bit more power, but still only 184 uA!
         if (write(MMA8653_CTRL_REG2, 0x10) != MICROBIT_OK) {
-            printf("MMA8653_CTRL_REG2 Write failed\r\n");
+            // printf("MMA8653_CTRL_REG2 Write failed\r\n");
             return;
         }
 
         // Enable the INT1 interrupt pin.
         if (write(MMA8653_CTRL_REG4, 0x01) != MICROBIT_OK) {
-            printf("MMA8653_CTRL_REG4 Write failed\r\n");
+            // printf("MMA8653_CTRL_REG4 Write failed\r\n");
             return;
         }
 
         // Select the DATA_READY event source to be routed to INT1
         if (write(MMA8653_CTRL_REG5, 0x01) != MICROBIT_OK) {
-            printf("MMA8653_CTRL_REG5 Write failed\r\n");
+            // printf("MMA8653_CTRL_REG5 Write failed\r\n");
             return;
         }
 
         // Configure for the selected g range.
         if (write(MMA8653_XYZ_DATA_CFG, 0x01) != MICROBIT_OK) {
-            printf("MMA8653_XYZ_DATA_CFG Write failed\r\n");
+            // printf("MMA8653_XYZ_DATA_CFG Write failed\r\n");
             return;
         }
 
         // Bring the device back online, with 10bit wide samples at the requested frequency.
         if (write(MMA8653_CTRL_REG1, 0x18 | 0x01) != MICROBIT_OK) {
-            printf("MMA8653_CTRL_REG1 Write failed\r\n");
+            // printf("MMA8653_CTRL_REG1 Write failed\r\n");
             return;
         }
 
-        printf("Configuration has been written. Accelerometer is ready!\r\n");
+        // printf("Configuration has been written. Accelerometer is ready!\r\n");
 
         minar::Scheduler::postCallback(
             mbed::util::FunctionPointer0<void>(this, &Accelerometer::read_accel_irq).bind()
@@ -144,14 +144,12 @@ public:
 private:
     void read_accel_irq(void)
     {
-        return;
-        
         // probably not safe but who gives a...
         int8_t data[6];
         // this cast feels very unsafe, but i stole it from microbit code
         // and those guys actually went to uni, so let's just keep it
         if (read(MMA8653_OUT_X_MSB, (uint8_t*)data, 6) != MICROBIT_OK) {
-            printf("MMA8653_OUT_X_MSB read failed\r\n");
+            // printf("MMA8653_OUT_X_MSB read failed\r\n");
             return;
         }
 
@@ -181,10 +179,10 @@ private:
         y *= 4;
         z *= 4;
 
-        // printf("Accel data %d %d %d\r\n", x, y, z);
+        // // printf("Accel data %d %d %d\r\n", x, y, z);
 
         // update BLE data
-        // accelService->SetData(x, y, z);
+        accelService->SetData(x, y, z);
     }
 
     int read(uint8_t reg, uint8_t* buffer, int length)
