@@ -1,0 +1,13 @@
+{
+  "name": "juggling-firmware",
+  "version": "0.0.1",
+  "bin": "./source",
+  "private": true,
+  "description": "Firmware for Web Bluetooth juggling demo",
+  "author": "Jan Jongboom <jan.jongboom@arm.com>",
+  "license": "WTFPL",
+  "dependencies": {
+    "mbed-drivers": "~0.11.6",
+    "ble": "^2.1.12"
+  }
+}
