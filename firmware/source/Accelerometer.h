@@ -138,7 +138,7 @@ public:
 
         minar::Scheduler::postCallback(
             mbed::util::FunctionPointer0<void>(this, &Accelerometer::read_accel_irq).bind()
-        ).period(minar::milliseconds(1000));
+        ).period(minar::milliseconds(1000 / 60));
     }
 
 private:
