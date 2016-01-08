@@ -1,0 +1,67 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web Bluetooth juggler</title>
+  </head>
+  <body>
+    <button id="go">Go Bluetooth</button>
+    <p id="log">
+
+    </p>
+    <h2 id="z">Z: </h2>
+
+    <script>
+      function log(msg) {
+        document.querySelector('#log').textContent += msg + '\n';
+      }
+
+      document.querySelector('#go').onclick = (e) => {
+        e.preventDefault();
+
+        navigator.bluetooth.requestDevice({ filters: [{ services: [ 0x8765 ] }] })
+          .then(device => {
+            log('Found device ' + device.name);
+            return device.connectGATT();
+          })
+          .then(server => {
+            log('Connected over GATT');
+            return server.getPrimaryService(0x8765);
+          })
+          .then(service => {
+            log('Got service ' + JSON.stringify(Object.keys(service)));
+            return service.getCharacteristic('e95dca4b-251d-470a-a062-fa1922dfa9a8');
+          })
+          .then(char => {
+            log('Char: ' + char.uuid);
+
+            // so now we have the characteristic and we can keep reading data...
+            function readZ() {
+              char.readValue().then(buffer => {
+                var data = new DataView(buffer);
+
+                var z = data.getUint8(5) << 8 | data.getUint8(4);
+                if (z > 32767) { // overflow
+                  z = z - 65535;
+                }
+
+                z /= 100;
+                // z = Math.abs(z);
+
+                document.querySelector('#z').textContent = z.toFixed(2);
+              })
+              .then(readZ)
+              .catch(err => {
+                log('err ' + err + ' ' + JSON.stringify(err));
+              });
+            }
+
+            readZ();
+          })
+          .catch(err => {
+            log('' + err + ' ' + JSON.stringify(err));
+          });
+      };
+    </script>
+  </body>
+</html>

@@ -12,7 +12,7 @@ static DigitalOut led_col_1(YOTTA_CFG_HARDWARE_PINS_COL1);
 static DigitalOut led_row_1(YOTTA_CFG_HARDWARE_PINS_ROW1);
 
 const static char DEVICE_NAME[] = "Juggler";
-static const uint16_t uuid16_list[] = { 0x1337 };
+static const uint16_t uuid16_list[] = { 0x8765 };
 static AccelerometerService* accelService;
 static Accelerometer* accelerometer;
 

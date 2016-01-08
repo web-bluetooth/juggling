@@ -18,7 +18,7 @@
 #define __BLE_ACCELEROMETER_SERVICE_H__
 
 // these actually come from micro:bit, maybe we should change them
-const uint16_t AccelServiceUuid = 0x1337;
+const uint16_t AccelServiceUuid = 0x8765;
 
 // const uint8_t AccelServiceUuid[] = {
 //     0xe9, 0x5d, 0x07, 0x53, 0x25, 0x1d, 0x47, 0x0a,
