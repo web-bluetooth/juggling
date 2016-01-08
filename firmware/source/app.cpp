@@ -75,8 +75,6 @@ void bleInitComplete(BLE::InitializationCompleteCallbackContext *params)
     eddyServicePtr->setURLData(defaultUrl);
     eddyServicePtr->setNormalFrameData(beaconName, strlen(beaconName), uuid16_list, sizeof(uuid16_list));
 
-    printf("beaconName %s %d\r\n", beaconName, strlen(beaconName));
-
     eddyServicePtr->setUIDFrameAdvertisingInterval(0);
     eddyServicePtr->setTLMFrameAdvertisingInterval(0);
     eddyServicePtr->setURLFrameAdvertisingInterval(500);
