@@ -40,6 +40,7 @@ public:
     static const uint16_t DEFAULT_URL_FRAME_PERIOD_MSEC = 700;
     static const uint16_t DEFAULT_UID_FRAME_PERIOD_MSEC = 300;
     static const uint16_t DEFAULT_TLM_FRAME_PERIOD_MSEC = 2000;
+    static const uint16_t DEFAULT_NORMAL_FRAME_PERIOD_MSEC = 0;
 
     /* Operation modes of the EddystoneService:
      *      NONE: EddystoneService has been initialised but no memory has been
@@ -72,6 +73,7 @@ public:
         uint16_t         urlFramePeriod;
         uint16_t         uidFramePeriod;
         uint16_t         tlmFramePeriod;
+        uint16_t         normalFramePeriod;
         uint8_t          tlmVersion;
         uint8_t          urlDataLength;
         UrlData_t        urlData;
@@ -89,6 +91,7 @@ public:
         EDDYSTONE_FRAME_URL,
         EDDYSTONE_FRAME_UID,
         EDDYSTONE_FRAME_TLM,
+        NORMAL_FRAME,
         NUM_EDDYSTONE_FRAMES
     };
 
@@ -125,11 +128,15 @@ public:
 
     void setUIDData(const UIDNamespaceID_t &uidNamespaceIDIn, const UIDInstanceID_t &uidInstanceIDIn);
 
+    void setNormalFrameData(char *nameIn, uint8_t nameLengthIn, uint16_t uuid16ListIn[], uint8_t uuid16ListLengthIn);
+
     void setURLFrameAdvertisingInterval(uint16_t urlFrameIntervalIn = DEFAULT_URL_FRAME_PERIOD_MSEC);
 
     void setUIDFrameAdvertisingInterval(uint16_t uidFrameIntervalIn = DEFAULT_UID_FRAME_PERIOD_MSEC);
 
     void setTLMFrameAdvertisingInterval(uint16_t tlmFrameIntervalIn = DEFAULT_TLM_FRAME_PERIOD_MSEC);
+
+    void setNormalFrameAdvertisingInterval(uint16_t normalFrameIntervalIn = DEFAULT_NORMAL_FRAME_PERIOD_MSEC);
 
     EddystoneError_t startConfigService(void);
 
@@ -226,6 +233,7 @@ private:
     uint16_t                                                        urlFramePeriod;
     uint16_t                                                        uidFramePeriod;
     uint16_t                                                        tlmFramePeriod;
+    uint16_t                                                        normalFramePeriod;
 
     ReadOnlyGattCharacteristic<bool>                                *lockStateChar;
     WriteOnlyArrayGattCharacteristic<uint8_t, sizeof(Lock_t)>       *lockChar;
@@ -251,9 +259,15 @@ private:
     minar::callback_handle_t                                        uidFrameCallbackHandle;
     minar::callback_handle_t                                        urlFrameCallbackHandle;
     minar::callback_handle_t                                        tlmFrameCallbackHandle;
+    minar::callback_handle_t                                        normalFrameCallbackHandle;
     minar::callback_handle_t                                        radioManagerCallbackHandle;
 
     GattCharacteristic                                              *charTable[TOTAL_CHARACTERISTICS];
+
+    char *                                                          normalFrameName;
+    uint8_t                                                         normalFrameNameLength;
+    uint16_t *                                                      normalFrameUuid16List;
+    uint8_t                                                         normalFrameUuid16ListLength;
 };
 
 #endif  /* __EDDYSTONESERVICE_H__ */

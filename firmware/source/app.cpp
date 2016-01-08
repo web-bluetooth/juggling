@@ -2,6 +2,7 @@
 #include "minar/minar.h"
 #include "core-util/FunctionPointer.h"
 #include "ble/BLE.h"
+#include "eddystone/EddystoneService.h"
 #include "AccelerometerService.h"
 #include "Accelerometer.h"
 
@@ -11,10 +12,17 @@ using namespace mbed::util;
 static DigitalOut led_col_1(YOTTA_CFG_HARDWARE_PINS_COL1);
 static DigitalOut led_row_1(YOTTA_CFG_HARDWARE_PINS_ROW1);
 
-const static char DEVICE_NAME[] = "Juggler";
-static const uint16_t uuid16_list[] = { 0x8765 };
+// const static char DEVICE_NAME[] = "Juggler";
 static AccelerometerService* accelService;
 static Accelerometer* accelerometer;
+
+// Eddystone vars
+static const char defaultUrl[] = "https://juggle.me";
+static char beaconName[] = "Juggler7";
+static uint16_t uuid16_list[] = { 0x8765 };
+
+static const PowerLevels_t defaultAdvPowerLevels = {-47, -33, -21, -13};
+static const PowerLevels_t radioPowerLevels      = {-30, -16, -4, 4};
 
 static void blinky_user(void) {
     led_row_1 = !led_row_1;
@@ -62,13 +70,29 @@ void bleInitComplete(BLE::InitializationCompleteCallbackContext *params)
     // accelerometer shouldnt depend on the BLE service, need to make this evented
     accelerometer = new Accelerometer(accelService);
 
+
+    auto eddyServicePtr = new EddystoneService(ble, defaultAdvPowerLevels, radioPowerLevels, 0);
+    eddyServicePtr->setURLData(defaultUrl);
+    eddyServicePtr->setNormalFrameData(beaconName, strlen(beaconName), uuid16_list, sizeof(uuid16_list));
+
+    printf("beaconName %s %d\r\n", beaconName, strlen(beaconName));
+
+    eddyServicePtr->setUIDFrameAdvertisingInterval(0);
+    eddyServicePtr->setTLMFrameAdvertisingInterval(0);
+    eddyServicePtr->setURLFrameAdvertisingInterval(500);
+    eddyServicePtr->setNormalFrameAdvertisingInterval(500);
+
+    eddyServicePtr->startBeaconService();
+
+
+
     /* Setup advertising. */
-    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
-    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
-    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME, (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME));
-    ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
-    ble.gap().setAdvertisingInterval(1000); /* 1000ms */
-    ble.gap().startAdvertising();
+    // ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
+    // ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
+    // ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME, (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME));
+    // ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
+    // ble.gap().setAdvertisingInterval(1000); /* 1000ms */
+    // ble.gap().startAdvertising();
 }
 
 // hmm... how to do i2c

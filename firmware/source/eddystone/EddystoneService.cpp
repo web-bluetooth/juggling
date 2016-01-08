@@ -112,6 +112,14 @@ void EddystoneService::setUIDData(const UIDNamespaceID_t &uidNamespaceIDIn, cons
     uidFrame.setUIDData(uidNamespaceIDIn, uidInstanceIDIn);
 }
 
+void EddystoneService::setNormalFrameData(char *nameIn, uint8_t nameLengthIn, uint16_t uuid16ListIn[], uint8_t uuid16ListLengthIn)
+{
+    normalFrameName = nameIn;
+    normalFrameNameLength = nameLengthIn;
+    normalFrameUuid16List = uuid16ListIn;
+    normalFrameUuid16ListLength = uuid16ListLengthIn;
+}
+
 EddystoneService::EddystoneError_t EddystoneService::startConfigService(void)
 {
     if (operationMode == EDDYSTONE_MODE_CONFIG) {
@@ -246,13 +254,23 @@ void EddystoneService::swapAdvertisedFrame(FrameType frameType)
     switch(frameType) {
     case EDDYSTONE_FRAME_URL:
         updateAdvertisementPacket(rawUrlFrame, urlFrame.getRawFrameSize());
+        ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_NON_CONNECTABLE_UNDIRECTED);
         break;
     case EDDYSTONE_FRAME_UID:
         updateAdvertisementPacket(rawUidFrame, uidFrame.getRawFrameSize());
+        ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_NON_CONNECTABLE_UNDIRECTED);
         break;
     case EDDYSTONE_FRAME_TLM:
         updateRawTLMFrame();
         updateAdvertisementPacket(rawTlmFrame, tlmFrame.getRawFrameSize());
+        ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_NON_CONNECTABLE_UNDIRECTED);
+        break;
+    case NORMAL_FRAME:
+        ble.gap().clearAdvertisingPayload();
+        ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
+        ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)normalFrameUuid16List, normalFrameUuid16ListLength);
+        ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME, (uint8_t *)normalFrameName, normalFrameNameLength);
+        ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
         break;
     default:
         /* Some error occurred */
@@ -329,6 +347,12 @@ void EddystoneService::setupBeaconService(void)
         advFrameQueue.push(EDDYSTONE_FRAME_URL);
         urlFrameCallbackHandle = minar::Scheduler::postCallback(
             mbed::util::FunctionPointer1<void, FrameType>(this, &EddystoneService::enqueueFrame).bind(EDDYSTONE_FRAME_URL)
+        ).period(minar::milliseconds(urlFramePeriod)).getHandle();
+    }
+    if (normalFramePeriod) {
+        advFrameQueue.push(NORMAL_FRAME);
+        urlFrameCallbackHandle = minar::Scheduler::postCallback(
+            mbed::util::FunctionPointer1<void, FrameType>(this, &EddystoneService::enqueueFrame).bind(NORMAL_FRAME)
         ).period(minar::milliseconds(urlFramePeriod)).getHandle();
     }
 
@@ -736,6 +760,42 @@ void EddystoneService::setTLMFrameAdvertisingInterval(uint16_t tlmFrameIntervalI
             ).period(minar::milliseconds(tlmFramePeriod)).getHandle();
         } else {
             tlmFrameCallbackHandle = NULL;
+        }
+    }
+}
+
+void EddystoneService::setNormalFrameAdvertisingInterval(uint16_t normalFrameIntervalIn)
+{
+    if (normalFrameIntervalIn == normalFramePeriod) {
+        /* Do nothing */
+        return;
+    }
+
+    /* Make sure the input period is within bounds */
+    normalFramePeriod = correctAdvertisementPeriod(normalFrameIntervalIn);
+
+    if (operationMode == EDDYSTONE_MODE_BEACON) {
+        if (normalFrameCallbackHandle) {
+            /* The advertisement interval changes, update minar periodic callback */
+            minar::Scheduler::cancelCallback(normalFrameCallbackHandle);
+        } else {
+            /* This frame was just enabled */
+            // if (!rawUidFrame && normalFramePeriod) {
+            //     /* Allocate memory for this frame and construct it */
+            //     rawUidFrame = new uint8_t[uidFrame.getRawFrameSize()];
+            //     uidFrame.constructUIDFrame(rawUidFrame, advPowerLevels[txPowerMode]);
+            // }
+        }
+
+        if (normalFramePeriod) {
+            /* Currently the only way to change the period of a callback in minar
+             * is to cancell it and reschedule
+             */
+            normalFrameCallbackHandle = minar::Scheduler::postCallback(
+                mbed::util::FunctionPointer1<void, FrameType>(this, &EddystoneService::enqueueFrame).bind(NORMAL_FRAME)
+            ).period(minar::milliseconds(normalFramePeriod)).getHandle();
+        } else {
+            normalFrameCallbackHandle = NULL;
         }
     }
 }
