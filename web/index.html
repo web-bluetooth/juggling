@@ -3,37 +3,165 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Web Bluetooth juggler</title>
+    <script src="jquery.js"></script>
+    <script src="chart.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+      canvas, #container {
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+      }
+      #actions {
+        position: absolute;
+        z-index: 99;
+      }
+    </style>
   </head>
   <body>
-    <button id="go">Go Bluetooth</button>
-    <p id="log">
+    <div id="actions">
+      <button id="go">Go Bluetooth</button>
+      <h2 id="z"></h2>
+    </div>
 
-    </p>
-    <h2 id="z">Z: </h2>
+  <div id="container"></div>
 
-    <script>
-      function log(msg) {
-        document.querySelector('#log').textContent += msg + '\n';
+  <script>
+    var container = document.getElementById('container');
+    var chart;
+    $(document).ready(function () {
+      Highcharts.setOptions( {
+        global: {
+          useUTC: false
+        }
+      }
+      );
+      $(container).highcharts( {
+        plotOptions: {
+          series: {
+            animation: false
+          },
+          spline: {
+            animation: false
+          },
+          line: {
+            animation: false,
+            marker: { enabled: false }
+          }
+        },
+        chart: {
+          type: 'line',
+          animation: false,
+          marginRight: 10,
+          events: {
+            load: function () {
+              chart = this;
+            }
+          }
+        }
+        ,
+        title: {
+          text: 'Devicemotion'
+        }
+        ,
+        xAxis: {
+          type: 'linear',
+          minRange: 10000,
+          min: 0
+        }
+        ,
+        yAxis: {
+          title: {
+            text: 'Value'
+          }
+          ,
+          plotLines:[ {
+            value: 0, width: 1, color: '#808080'
+          }
+          ],
+          min: -3,
+          max: 90
+        }
+        ,
+        tooltip: {
+          enabled: false
+        }
+        ,
+        legend: {
+          enabled: false
+        }
+        ,
+        exporting: {
+          enabled: false
+        }
+      }
+      );
+    });
+
+    var gotEventInLast500ms = false;
+    var _geilTimer = null;
+    var devices = {};
+
+    function addPoint(id, z) {
+      if (!devices[id]) {
+        var serie = chart.addSeries({
+          name: 'Another one',
+          data: []
+        });
+        devices[id] = {
+          firstEventFromDevice: Date.now(),
+          firstEventOnServer: Date.now(),
+          serie: serie,
+          offset: 0
+        };
+        serie.device = devices[id];
+        if (gotEventInLast500ms) {
+          // we need to sync this thing up with the other chart. We use series[0] as a basic
+          devices[id].offset = Date.now() - chart.series[0].device.firstEventOnServer;
+        }
+      }
+      gotEventInLast500ms = true;
+      clearTimeout(_geilTimer);
+      _geilTimer = setTimeout(function() {
+        console.log('Didnt get event in last 1000ms');
+        gotEventInLast500ms = false;
+      }, 1000);
+      var dev = devices[id];
+      var t = (dev.offset + Date.now() - dev.firstEventFromDevice);
+      dev.serie.addPoint([ t,
+                         Math.abs(z)],
+                         true,
+                         dev.serie.points.length > 100);
+      if (t > 10000 && (t - 10000 > chart.xAxis[0].min)) {
+        chart.xAxis[0].setExtremes((t) - 10000);
       }
 
-      document.querySelector('#go').onclick = (e) => {
-        e.preventDefault();
+    }
 
-        navigator.bluetooth.requestDevice({ filters: [{ services: [ 0x8765 ] }] })
-          .then(device => {
-            log('Found device ' + device.name);
-            return device.connectGATT();
-          })
-          .then(server => {
-            log('Connected over GATT');
+
+    document.querySelector('#go').onclick = (e) => {
+      e.preventDefault();
+
+      navigator.bluetooth.requestDevice({ filters: [{ services: [ 0x8765 ] }] })
+        .then(device => {
+          console.log('Found device ' + device.name);
+
+          return device.connectGATT().then(server => {
+            console.log('Connected over GATT');
             return server.getPrimaryService(0x8765);
           })
           .then(service => {
-            log('Got service ' + JSON.stringify(Object.keys(service)));
+            console.log('Got service ' + JSON.stringify(Object.keys(service)));
             return service.getCharacteristic('e95dca4b-251d-470a-a062-fa1922dfa9a8');
           })
           .then(char => {
-            log('Char: ' + char.uuid);
+            console.log('Char: ' + char.uuid);
 
             // so now we have the characteristic and we can keep reading data...
             function readZ() {
@@ -48,19 +176,21 @@
                 z /= 100;
                 // z = Math.abs(z);
 
-                document.querySelector('#z').textContent = z.toFixed(2);
+                addPoint(device.instanceID, z);
+                // document.querySelector('#z').textContent = z.toFixed(2);
               })
               .then(readZ)
               .catch(err => {
-                log('err ' + err + ' ' + JSON.stringify(err));
+                alert('err ' + err + ' ' + JSON.stringify(err));
               });
             }
 
             readZ();
-          })
-          .catch(err => {
-            log('' + err + ' ' + JSON.stringify(err));
           });
+        })
+        .catch(err => {
+          alert('' + err + ' ' + JSON.stringify(err));
+        });
       };
     </script>
   </body>

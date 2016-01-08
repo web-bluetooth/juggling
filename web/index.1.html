@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeviceMotion Multi</title>
+  <script src="jquery.js"></script>
+  <script src="chart.js"></script>
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+    canvas, #container {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+    }
+    #actions {
+      position: absolute;
+      z-index: 99;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="actions">
+    <button id="new-series">New series</button>
+    <button id="remove">Remove last one</button>
+  </div>
+  <div id="container"></div>
+
+  <script>
+    var container = document.getElementById('container');
+    var chart;
+    $(document).ready(function () {
+      Highcharts.setOptions( {
+        global: {
+          useUTC: false
+        }
+      }
+      );
+      $(container).highcharts( {
+        plotOptions: {
+          series: {
+            animation: false
+          },
+          spline: {
+            animation: false
+          },
+          line: {
+            animation: false,
+            marker: { enabled: false }
+          }
+        },
+        chart: {
+          type: 'line',
+          animation: false,
+          marginRight: 10,
+          events: {
+            load: function () {
+              chart = this;
+            }
+          }
+        }
+        ,
+        title: {
+          text: 'DeviceMotion'
+        }
+        ,
+        xAxis: {
+          type: 'linear',
+          minRange: 10000,
+          min: 0
+        }
+        ,
+        yAxis: {
+          title: {
+            text: 'Value'
+          }
+          ,
+          plotLines:[ {
+            value: 0, width: 1, color: '#808080'
+          }
+          ],
+          min: -3,
+          max: 80
+        }
+        ,
+        tooltip: {
+          enabled: false
+        }
+        ,
+        legend: {
+          enabled: false
+        }
+        ,
+        exporting: {
+          enabled: false
+        }
+      }
+      );
+    }
+    );
+    var gotEventInLast500ms = false;
+    var _geilTimer = null;
+    var devices = {};
+    var ws = new WebSocket('ws://' + location.hostname + ':7002');
+    ws.onmessage = function(e) {
+      var data = e.data;
+      if (typeof data === 'string') data = JSON.parse(data);
+      if (data && data.type === 'devicemotion') {
+        if (!devices[data.deviceId]) {
+          var serie = chart.addSeries({
+            name: 'Another one',
+            data: []
+          });
+          devices[data.deviceId] = {
+            firstEventFromDevice: data.timestamp,
+            firstEventOnServer: Date.now(),
+            serie: serie,
+            offset: 0
+          };
+          serie.device = devices[data.deviceId];
+          if (gotEventInLast500ms) {
+            // we need to sync this thing up with the other chart. We use series[0] as a basic
+            devices[data.deviceId].offset = Date.now() - chart.series[0].device.firstEventOnServer;
+          }
+        }
+        gotEventInLast500ms = true;
+        clearTimeout(_geilTimer);
+        _geilTimer = setTimeout(function() {
+          console.log('Didnt get event in last 1000ms');
+          gotEventInLast500ms = false;
+        }, 1000);
+        var dev = devices[data.deviceId];
+        var t = (dev.offset + data.timestamp - dev.firstEventFromDevice);
+        dev.serie.addPoint([ t,
+                           Math.abs(data.z)],
+                           true);
+        if (t > 5000 && (t - 5000 > chart.xAxis[0].min)) {
+          chart.xAxis[0].setExtremes((t) - 5000);
+        }
+      }
+    };
+    document.querySelector('#new-series').onclick = function() {
+      devices = {};
+    };
+    document.querySelector('#remove').onclick = function() {
+      chart.series[chart.series.length - 1].remove();
+      document.querySelector('#new-series').onclick();
+    };
+  </script>
+</body>
+
+</html>
