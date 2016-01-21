@@ -165,8 +165,9 @@
 
             // so now we have the characteristic and we can keep reading data...
             function readZ() {
-              char.readValue().then(buffer => {
-                var data = new DataView(buffer);
+              char.readValue().then(data => {
+                // In Chrome 50+, a DataView is returned instead of an ArrayBuffer.
+                data = data.buffer ? data : new DataView(data);
 
                 var z = data.getUint8(5) << 8 | data.getUint8(4);
                 if (z > 32767) { // overflow
